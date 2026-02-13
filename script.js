@@ -21,16 +21,65 @@ let authResolved = false;
 
 // --- AUTHENTICATION LOGIC ---
 
+function getFriendlyAuthError(error) {
+  if (!error || !error.code) {
+    return "Login fail ho gaya. Console me exact error check karein.";
+  }
+
+  const code = error.code;
+
+  if (code === "auth/unauthorized-domain") {
+    return "Ye domain Firebase Authorized Domains me add nahi hai. Firebase Console > Authentication > Settings > Authorized domains me current domain add karein.";
+  }
+
+  if (code === "auth/operation-not-allowed") {
+    return "Firebase me Google Sign-In disabled hai. Authentication > Sign-in method me Google provider enable karein.";
+  }
+
+  if (code === "auth/popup-blocked") {
+    return "Browser ne popup block kar diya. Popup allow karein ya redirect login use karein.";
+  }
+
+  if (code === "auth/popup-closed-by-user") {
+    return "Google login popup band ho gaya. Dobara try karein.";
+  }
+
+  if (code === "auth/network-request-failed") {
+    return "Network issue ki wajah se login fail hua. Internet check karke dobara try karein.";
+  }
+
+  return `Login fail: ${code}`;
+}
+
+function showAuthError(error, prefix) {
+  const label = prefix || "Auth Error";
+  console.error(`${label}:`, error);
+  alert(getFriendlyAuthError(error));
+}
+
 function loginWithGoogle() {
-  auth.signInWithRedirect(provider).catch((error) => {
-    console.error("Login Redirect Error:", error.message);
-    alert("Login start nahi ho paaya. Kripya dobara try karein.");
-  });
+  if (window.location.protocol === 'file:') {
+    alert("App ko file:// se mat kholiye. Isse Firebase login fail hota hai. Isse localhost server par run karein.");
+    return;
+  }
+
+  auth.signInWithPopup(provider)
+    .catch((popupError) => {
+      // Agar popup blocked ho ya suitable na ho to redirect fallback.
+      if (popupError && popupError.code === "auth/popup-blocked") {
+        auth.signInWithRedirect(provider).catch((redirectError) => {
+          showAuthError(redirectError, "Login Redirect Error");
+        });
+        return;
+      }
+
+      showAuthError(popupError, "Login Popup Error");
+    });
 }
 
 // Redirect result ko consume karte hain taaki errors surface ho jayein.
 auth.getRedirectResult().catch((error) => {
-  console.error("Redirect Result Error:", error.message);
+  showAuthError(error, "Redirect Result Error");
 });
 
 // Auth state observer
