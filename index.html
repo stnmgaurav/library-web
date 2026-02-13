@@ -26,7 +26,7 @@
         <div id="adminPanel" class="section" style="display:none;">
             <header>
                 <h2>Admin Control Center</h2>
-                <button onclick="auth.signOut()" class="logout-btn">Logout</button>
+                <button onclick="auth.signOut().then(() => location.reload())" class="logout-btn">Logout</button>
             </header>
 
             <div class="card">
@@ -60,7 +60,7 @@
         <div id="studentPanel" class="section" style="display:none;">
             <header>
                 <h2>Student Dashboard</h2>
-                <button onclick="auth.signOut()" class="logout-btn">Logout</button>
+                <button onclick="auth.signOut().then(() => location.reload())" class="logout-btn">Logout</button>
             </header>
 
             <div class="card stats-card">
