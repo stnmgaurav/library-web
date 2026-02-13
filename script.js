@@ -1,4 +1,4 @@
-// 1. Firebase Configuration (Aapka diya hua config)
+// 1. Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCQivUhwCY7WCQFbHNCUSs_xQgLfWMs_f0",
   authDomain: "student-manager-app-8552a.firebaseapp.com",
@@ -16,34 +16,34 @@ const provider = new firebase.auth.GoogleAuthProvider();
 
 // --- AUTHENTICATION LOGIC ---
 
-// Google Login Function
 function loginWithGoogle() {
-    // Redirect use kar rahe hain taaki Cross-Origin error na aaye
+    // Redirect method sabse best hai mobile aur vercel ke liye
     auth.signInWithRedirect(provider);
 }
 
-// Ye automatic check karega jab page redirect hoke wapas aayega
-auth.getRedirectResult().then((result) => {
-    if (result.user) {
-        const user = result.user;
-        console.log("Logged in:", user.displayName);
+// YE SABSE ZARURI HISSA HAI: Ye har bar check karega login status
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        console.log("User is logged in:", user.email);
         handleUserDatabaseEntry(user);
+    } else {
+        console.log("No user logged in.");
+        document.getElementById('loginSection').style.display = 'block';
+        document.getElementById('adminPanel').style.display = 'none';
+        document.getElementById('studentPanel').style.display = 'none';
     }
-}).catch((error) => {
-    console.error("Login Failed:", error.message);
 });
 
-// Database mein entry check aur create karne ka logic
 function handleUserDatabaseEntry(user) {
     const userRef = db.collection("users").doc(user.uid);
     
     userRef.get().then((doc) => {
         if (!doc.exists) {
-            // Naya user hai, toh database mein record banayein
+            // Naya user document create karein
             userRef.set({
                 display_name: user.displayName,
                 email: user.email,
-                role: "Student", // Default role
+                role: "Student", 
                 fee_status: "Unpaid",
                 uid: user.uid,
                 created_at: firebase.firestore.FieldValue.serverTimestamp()
@@ -51,9 +51,10 @@ function handleUserDatabaseEntry(user) {
                 checkUserRole(user);
             });
         } else {
-            // Purana user hai, seedha role check karein
             checkUserRole(user);
         }
+    }).catch((error) => {
+        console.error("Database Error:", error);
     });
 }
 
@@ -61,7 +62,6 @@ function checkUserRole(user) {
     db.collection("users").doc(user.uid).get().then((doc) => {
         if (doc.exists) {
             const role = doc.data().role;
-            // Login section chhupayein
             document.getElementById('loginSection').style.display = 'none';
             
             if (role === "Admin") {
@@ -89,19 +89,16 @@ function addStudent() {
             email: email,
             fee_status: fees,
             role: "Student",
-            valid_until: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 30*24*60*60*1000)),
             created_at: firebase.firestore.FieldValue.serverTimestamp()
-        })
-        .then(() => {
+        }).then(() => {
             alert("Student Added!");
             document.getElementById('studentName').value = '';
             document.getElementById('studentEmail').value = '';
         });
-    } else {
-        alert("Please fill name and email!");
     }
 }
 
+// Student list real-time
 db.collection("users").where("role", "==", "Student")
     .onSnapshot((snapshot) => {
         const listBody = document.getElementById('studentListBody');
@@ -109,54 +106,16 @@ db.collection("users").where("role", "==", "Student")
             listBody.innerHTML = "";
             snapshot.forEach((doc) => {
                 const s = doc.data();
-                listBody.innerHTML += `
-                    <tr>
-                        <td>${s.display_name}</td>
-                        <td>${s.fee_status}</td>
-                        <td><button onclick="deleteStudent('${doc.id}')" style="background:red; color:white; border:none; padding:5px; border-radius:4px;">Delete</button></td>
-                    </tr>`;
+                listBody.innerHTML += `<tr><td>${s.display_name}</td><td>${s.fee_status}</td><td><button onclick="deleteStudent('${doc.id}')">Delete</button></td></tr>`;
             });
         }
     });
 
-function deleteStudent(id) {
-    if(confirm("Remove this student?")) {
-        db.collection("users").doc(id).delete();
-    }
-}
-
-// --- STUDENT & QR SCANNER LOGIC ---
-
-let html5QrCode;
-
-function startScanner() {
-    html5QrCode = new Html5Qrcode("reader");
-    const qrConfig = { fps: 10, qrbox: { width: 250, height: 250 } };
-    
-    html5QrCode.start({ facingMode: "environment" }, qrConfig, (decodedText) => {
-        if(decodedText === "LIBRARY_GATE_01") {
-            markAttendance();
-            html5QrCode.stop();
-        }
-    }).catch(err => console.error("Camera error:", err));
-}
-
-function markAttendance() {
-    const user = auth.currentUser;
-    if(user) {
-        db.collection("attendance").add({
-            student_id: user.uid,
-            name: user.displayName,
-            time: firebase.firestore.FieldValue.serverTimestamp()
-        }).then(() => alert("Attendance Marked! ✅"));
-    }
-}
-
+// --- STUDENT STATS ---
 function showStudentStats(uid) {
     db.collection("users").doc(uid).onSnapshot((doc) => {
         if (doc.exists) {
-            const data = doc.data();
-            document.getElementById('daysDisplay').innerText = "Fee Status: " + data.fee_status;
+            document.getElementById('daysDisplay').innerText = "Fees Status: " + doc.data().fee_status;
         }
     });
 }
