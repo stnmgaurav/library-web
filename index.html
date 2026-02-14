@@ -3,76 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Library Manager App</title>
+    <title>Library Student Panel</title>
     <link rel="stylesheet" href="style.css">
-    
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
 
-    <div class="container">
-        <div id="loginSection" class="section card">
-            <h1>Library Portal</h1>
-            <p>Apne Google account se login karein</p>
-            <button onclick="loginWithGoogle()" class="google-btn">
-                Continue with Google
+    <div class="header">
+        <h2 id="panelTitle">Library Pro</h2>
+        <p id="userWelcome"></p>
+    </div>
+
+    <div id="loginSection" class="card">
+        <div class="icon-circle"><i class="fas fa-user-lock"></i></div>
+        <h3>Student Login</h3>
+        <button class="google-btn" onclick="loginWithGoogle()">
+            <i class="fab fa-google"></i> Login with Google
+        </button>
+    </div>
+
+    <div id="studentPanel" style="display:none; width: 100%; max-width: 500px;">
+        <div class="card">
+            <div id="statusIcon"></div>
+            <h3 id="feeDisplay"></h3>
+            <button id="startScanBtn" class="primary-btn" onclick="startScanner()" style="display:none;">
+                <i class="fas fa-qrcode"></i> Open QR Scanner
             </button>
+            <div id="reader"></div>
         </div>
 
-        <div id="adminPanel" class="section" style="display:none;">
-            <header>
-                <h2>Admin Control Center</h2>
-                <button onclick="auth.signOut().then(() => location.reload())" class="logout-btn">Logout</button>
-            </header>
+        <div class="card stats-card">
+            <p id="todayHours" style="font-weight: 600; margin:0;">Today: -</p>
+        </div>
 
-            <div class="card">
-                <h3>Naya Student Add Karein</h3>
-                <div class="form-group">
-                    <input type="text" id="studentName" placeholder="Student ka Naam">
-                    <input type="email" id="studentEmail" placeholder="Student ki Email">
-                    <select id="feeStatus">
-                        <option value="Paid">Fees Paid</option>
-                        <option value="Unpaid">Fees Pending</option>
-                    </select>
-                    <button onclick="addStudent()">Add Student</button>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>Student List</h3>
+        <div class="card">
+            <h3><i class="fas fa-history"></i> My Attendance</h3>
+            <div class="table-container">
                 <table>
-                    <thead>
-                        <tr>
-                            <th>Naam</th>
-                            <th>Fees Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="studentListBody"></tbody>
+                    <thead><tr><th>Date</th><th>In</th><th>Out</th><th>Hrs</th></tr></thead>
+                    <tbody id="historyBody"></tbody>
                 </table>
             </div>
         </div>
-
-        <div id="studentPanel" class="section" style="display:none;">
-            <header>
-                <h2>Student Dashboard</h2>
-                <button onclick="auth.signOut().then(() => location.reload())" class="logout-btn">Logout</button>
-            </header>
-
-            <div class="card stats-card">
-                <h3 id="daysDisplay">Checking Status...</h3>
-            </div>
-
-            <div class="card">
-                <h3>Scan QR to Check-in</h3>
-                <div id="reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
-                <button onclick="startScanner()" class="scan-btn">Start Camera</button>
-            </div>
-        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
     </div>
 
     <script src="script.js"></script>
