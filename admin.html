@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Admin Control</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h2>Admin Dashboard</h2>
+    </div>
+
+    <div id="adminPanel" style="width: 100%; max-width: 700px;">
+        <div class="card stats-card">
+            <h3 id="totalPresent">Loading Today's Stats...</h3>
+        </div>
+
+        <div class="card">
+            <h3>Student Approvals & Fees</h3>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Name</th><th>Mobile</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody id="studentListBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <script src="admin-script.js"></script>
+</body>
+</html>
