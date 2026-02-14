@@ -8,7 +8,7 @@ import {
     getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut 
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
-// ================= NEW FIREBASE CONFIG (Updated) =================
+// ================= NEW FIREBASE CONFIG =================
 const firebaseConfig = {
     apiKey: "AIzaSyCQivUhwCY7WCQFbHNCUSs_xQgLfWMs_f0",
     authDomain: "student-manager-app-8552a.firebaseapp.com",
@@ -29,7 +29,6 @@ const ADMIN_EMAIL = "gauravsinghrajpoot2019@gmail.com";
 
 // ================= LOGIN & AUTH =================
 
-// Window object se attach karna zaroori hai onclick ke liye
 window.loginWithGoogle = async () => {
     try {
         await signInWithPopup(auth, provider);
@@ -49,11 +48,14 @@ onAuthStateChanged(auth, (user) => {
 });
 
 function showLogin() {
-    const sections = ['loginSection', 'adminPanel', 'studentPanel'];
-    sections.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = (id === 'loginSection') ? 'block' : 'none';
-    });
+    const loginSec = document.getElementById('loginSection');
+    const studentSec = document.getElementById('studentPanel');
+    const adminSec = document.getElementById('adminPanel');
+
+    if (loginSec) loginSec.style.display = 'block';
+    if (studentSec) studentSec.style.display = 'none';
+    if (adminSec) adminSec.style.display = 'none';
+    
     document.getElementById('userWelcome').innerText = "";
 }
 
@@ -88,12 +90,16 @@ async function handleUser(user) {
 // ================= ADMIN LOGIC =================
 
 async function loadAdminPanel() {
-    document.getElementById('loginSection').style.display = 'none';
-    document.getElementById('adminPanel').style.display = 'block';
-    
-    await checkAndResetFees();
-    loadStats();
-    loadStudents();
+    const adminPanel = document.getElementById('adminPanel');
+    if (adminPanel) {
+        adminPanel.style.display = 'block';
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('studentPanel').style.display = 'none';
+        
+        await checkAndResetFees();
+        loadStats();
+        loadStudents();
+    }
 }
 
 async function checkAndResetFees() {
@@ -101,40 +107,36 @@ async function checkAndResetFees() {
     const q = query(collection(db, "users"), where("fee_status", "==", "Paid"));
     const snapshot = await getDocs(q);
     
-    const promises = snapshot.docs.map(userDoc => {
+    snapshot.forEach(async (userDoc) => {
         const data = userDoc.data();
         if (data.last_paid_date) {
             const lastPaid = new Date(data.last_paid_date);
             const diffDays = Math.ceil(Math.abs(now - lastPaid) / (1000 * 60 * 60 * 24));
             if (diffDays > 30) {
-                return updateDoc(doc(db, "users", userDoc.id), { fee_status: "Unpaid" });
+                await updateDoc(doc(db, "users", userDoc.id), { fee_status: "Unpaid" });
             }
         }
-        return null;
     });
-    await Promise.all(promises);
 }
 
 async function loadStats() {
-    // Optimized: Promise.all use karke sab ek saath load honge
-    const [studentsSnap, paidSnap] = await Promise.all([
-        getDocs(query(collection(db, "users"), where("role", "==", "Student"))),
-        getDocs(query(collection(db, "users"), where("fee_status", "==", "Paid")))
-    ]);
-
-    document.getElementById("totalStudentsCount").innerText = studentsSnap.size;
-    document.getElementById("paidFeesCount").innerText = paidSnap.size;
+    const studentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "Student")));
+    const paidSnap = await getDocs(query(collection(db, "users"), where("fee_status", "==", "Paid")));
+    
+    if(document.getElementById("totalStudentsCount")) document.getElementById("totalStudentsCount").innerText = studentsSnap.size;
+    if(document.getElementById("paidFeesCount")) document.getElementById("paidFeesCount").innerText = paidSnap.size;
 
     const today = new Date().toISOString().split("T")[0];
-    const attenSnap = await getDocs(query(collection(db, "attendance"), where("date", "==", today)));
-    document.getElementById("totalPresent").innerText = attenSnap.size;
+    const attSnap = await getDocs(query(collection(db, "attendance"), where("date", "==", today)));
+    if(document.getElementById("totalPresent")) document.getElementById("totalPresent").innerText = attSnap.size;
 }
 
 async function loadStudents() {
     const tableBody = document.getElementById("studentListBody");
-    tableBody.innerHTML = "<tr><td colspan='5'>Loading Students...</td></tr>";
+    if(!tableBody) return;
     
-    const q = query(collection(db, "users"), where("role", "==", "Student"), orderBy("created_at", "desc"));
+    tableBody.innerHTML = "Loading...";
+    const q = query(collection(db, "users"), where("role", "==", "Student"));
     const snapshot = await getDocs(q);
     
     tableBody.innerHTML = "";
@@ -143,9 +145,9 @@ async function loadStudents() {
         tableBody.innerHTML += `
             <tr>
                 <td>${data.name}</td>
-                <td><input type="text" id="mobile-${userDoc.id}" value="${data.mobile || ''}" class="table-input"></td>
+                <td><input type="text" id="mobile-${userDoc.id}" value="${data.mobile || ''}" style="width:100px"></td>
                 <td>
-                    <select id="fee-${userDoc.id}" class="table-select">
+                    <select id="fee-${userDoc.id}">
                         <option value="Paid" ${data.fee_status === "Paid" ? "selected" : ""}>Paid</option>
                         <option value="Unpaid" ${data.fee_status === "Unpaid" ? "selected" : ""}>Unpaid</option>
                     </select>
@@ -165,12 +167,10 @@ window.approveStudent = async (uid) => {
         updateData.last_paid_date = new Date().toISOString().split("T")[0];
     }
 
-    try {
-        await updateDoc(doc(db, "users", uid), updateData);
-        alert("Student data updated!");
-        loadStats();
-        loadStudents();
-    } catch (e) { alert("Error: " + e.message); }
+    await updateDoc(doc(db, "users", uid), updateData);
+    alert("Updated Successfully!");
+    loadStats();
+    loadStudents();
 };
 
 // ================= STUDENT LOGIC =================
@@ -184,16 +184,16 @@ function loadStudentPanel(userData) {
     const statusIcon = document.getElementById("statusIcon");
 
     if (!userData.approved) {
-        statusIcon.innerHTML = '⏳';
-        feeText.innerText = "Approval Pending...";
+        statusIcon.innerHTML = '<i class="fas fa-clock" style="color:#f59e0b; font-size:40px;"></i>';
+        feeText.innerText = "Waiting for admin approval";
         scanBtn.style.display = "none";
     } else if (userData.fee_status !== "Paid") {
-        statusIcon.innerHTML = '❌';
-        feeText.innerText = "Fees Unpaid";
+        statusIcon.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#ef4444; font-size:40px;"></i>';
+        feeText.innerText = "Please pay fees to scan";
         scanBtn.style.display = "none";
     } else {
-        statusIcon.innerHTML = '✅';
-        feeText.innerText = "Access Granted";
+        statusIcon.innerHTML = '<i class="fas fa-check-circle" style="color:#10b981; font-size:40px;"></i>';
+        feeText.innerText = "Fees Paid ✅";
         scanBtn.style.display = "block";
         loadTodayHours(auth.currentUser.uid);
         loadHistory(auth.currentUser.uid);
@@ -211,7 +211,10 @@ window.startScanner = () => {
         (decodedText) => {
             if(decodedText === "LIBRARY_ENTRY") {
                 html5QrCode.pause(true);
+                window.navigator.vibrate(200);
                 markAttendance(auth.currentUser.uid);
+            } else {
+                alert("Invalid QR Code!");
             }
         }
     ).catch(err => alert("Camera Error: " + err));
@@ -230,18 +233,32 @@ async function markAttendance(uid) {
             uid, date: dateString, checkIn: timeString, checkOut: "", totalHours: "",
             created_at: serverTimestamp()
         });
-        alert("Checked In! ✅");
+        alert("Check-In Success! ✅");
+        location.reload();
     } else {
         const attDoc = snap.docs[0];
-        if (!attDoc.data().checkOut) {
-            const hours = ((new Date() - attDoc.data().created_at.toDate()) / 3600000).toFixed(2);
-            await updateDoc(doc(db, "attendance", attDoc.id), { checkOut: timeString, totalHours: hours });
-            alert("Checked Out! 👋");
+        const data = attDoc.data();
+
+        if (!data.checkOut) {
+            const checkInTime = data.created_at.toDate();
+            const diffMinutes = Math.floor((new Date() - checkInTime) / (1000 * 60));
+
+            if (diffMinutes < 2) {
+                alert("Wait! Kam se kam 2 min baad check-out karein.");
+                html5QrCode.resume();
+                return;
+            }
+
+            const hours = ((new Date() - checkInTime) / 3600000).toFixed(2);
+            await updateDoc(doc(db, "attendance", attDoc.id), {
+                checkOut: timeString, totalHours: hours
+            });
+            alert("Check-Out Success! 👋");
+            location.reload();
         } else {
-            alert("Already marked for today.");
+            alert("Today's attendance already completed!");
         }
     }
-    location.reload();
 }
 
 async function loadTodayHours(uid) {
@@ -250,18 +267,20 @@ async function loadTodayHours(uid) {
     const snap = await getDocs(q);
     if (!snap.empty) {
         const d = snap.docs[0].data();
-        document.getElementById("todayHours").innerText = `Session: ${d.checkIn} - ${d.checkOut || 'Active'}`;
+        document.getElementById("todayHours").innerText = `Today: ${d.checkIn} - ${d.checkOut || 'Active'} | ${d.totalHours || '0'} hrs`;
     }
 }
 
 async function loadHistory(uid) {
-    const q = query(collection(db, "attendance"), where("uid", "==", uid), orderBy("created_at", "desc"), limit(5));
-    const snap = await getDocs(q);
     const table = document.getElementById("historyBody");
+    if(!table) return;
+    
     table.innerHTML = "";
+    const q = query(collection(db, "attendance"), where("uid", "==", uid), orderBy("created_at", "desc"), limit(10));
+    const snap = await getDocs(q);
     snap.forEach(doc => {
         const d = doc.data();
-        table.innerHTML += `<tr><td>${d.date}</td><td>${d.checkIn}</td><td>${d.checkOut || '-'}</td></tr>`;
+        table.innerHTML += `<tr><td>${d.date.slice(5)}</td><td>${d.checkIn}</td><td>${d.checkOut || '-'}</td><td>${d.totalHours || '-'}</td></tr>`;
     });
 }
 
