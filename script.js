@@ -1,4 +1,5 @@
 // ================= FIREBASE CONFIG =================
+// Aapki correct Library Web App ki details yahan hain
 const firebaseConfig = {
     apiKey: "AIzaSyDf1kBSxrMAn84T2fyt5ipc7GZ3iMSA7hg",
     authDomain: "librarywebapp-e65ac.firebaseapp.com",
@@ -8,7 +9,11 @@ const firebaseConfig = {
     appId: "1:710619179809:web:6d130adbca76669f226c60"
 };
 
-firebase.initializeApp(firebaseConfig);
+// Initialize Firebase (Using v8 Compatibility mode)
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
 const db = firebase.firestore();
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
@@ -24,7 +29,8 @@ function loginWithGoogle() {
 
 auth.onAuthStateChanged((user) => {
     if (user) {
-        document.getElementById('userWelcome').innerText = `Hi, ${user.displayName.split(' ')[0]}!`;
+        const welcomeEl = document.getElementById('userWelcome');
+        if(welcomeEl) welcomeEl.innerText = `Hi, ${user.displayName.split(' ')[0]}!`;
         handleUser(user);
     } else {
         showLogin();
@@ -32,10 +38,10 @@ auth.onAuthStateChanged((user) => {
 });
 
 function showLogin() {
-    document.getElementById('loginSection').style.display = 'block';
+    if(document.getElementById('loginSection')) document.getElementById('loginSection').style.display = 'block';
     if(document.getElementById('adminPanel')) document.getElementById('adminPanel').style.display = 'none';
-    document.getElementById('studentPanel').style.display = 'none';
-    document.getElementById('userWelcome').innerText = "";
+    if(document.getElementById('studentPanel')) document.getElementById('studentPanel').style.display = 'none';
+    if(document.getElementById('userWelcome')) document.getElementById('userWelcome').innerText = "";
 }
 
 function handleUser(user) {
@@ -52,11 +58,12 @@ function handleUser(user) {
             } else { loadAdminPanel(); }
         } else {
             if (!doc.exists) {
-                userRef.set({
+                const newStudent = {
                     name: user.displayName, email: user.email, mobile: "",
                     role: "Student", approved: false, fee_status: "Unpaid",
                     uid: user.uid, created_at: firebase.firestore.FieldValue.serverTimestamp()
-                }).then(() => loadStudentPanel({ approved: false, fee_status: "Unpaid" }));
+                };
+                userRef.set(newStudent).then(() => loadStudentPanel(newStudent));
             } else { loadStudentPanel(doc.data()); }
         }
     });
@@ -74,7 +81,7 @@ async function loadAdminPanel() {
     document.getElementById('loginSection').style.display = 'none';
     document.getElementById('studentPanel').style.display = 'none';
 
-    await checkAndResetFees(); // 30 days check
+    await checkAndResetFees();
     loadStats();
     loadStudents();
 }
@@ -88,7 +95,6 @@ async function checkAndResetFees() {
         if (data.last_paid_date) {
             const lastPaid = new Date(data.last_paid_date);
             const diffDays = Math.ceil(Math.abs(now - lastPaid) / (1000 * 60 * 60 * 24));
-
             if (diffDays > 30) {
                 await db.collection("users").doc(doc.id).update({ fee_status: "Unpaid" });
             }
@@ -98,21 +104,25 @@ async function checkAndResetFees() {
 
 function loadStats() {
     db.collection("users").where("role", "==", "Student").get().then(snap => {
-        document.getElementById("totalStudentsCount").innerText = snap.size;
+        const el = document.getElementById("totalStudentsCount");
+        if(el) el.innerText = snap.size;
     });
 
     db.collection("users").where("fee_status", "==", "Paid").get().then(snap => {
-        document.getElementById("paidFeesCount").innerText = snap.size;
+        const el = document.getElementById("paidFeesCount");
+        if(el) el.innerText = snap.size;
     });
 
     const today = new Date().toISOString().split("T")[0];
     db.collection("attendance").where("date", "==", today).get().then(snap => {
-        document.getElementById("totalPresent").innerText = snap.size;
+        const el = document.getElementById("totalPresent");
+        if(el) el.innerText = snap.size;
     });
 }
 
 function loadStudents() {
     const tableBody = document.getElementById("studentListBody");
+    if(!tableBody) return;
     tableBody.innerHTML = "Loading...";
     db.collection("users").where("role", "==", "Student").get().then((snapshot) => {
         tableBody.innerHTML = "";
@@ -189,9 +199,8 @@ function startScanner() {
         { fps: 10, qrbox: 250 },
         (decodedText) => {
             if(decodedText === "LIBRARY_ENTRY") {
-                // 1. Scanner pause karo turant
                 html5QrCode.pause(true);
-                window.navigator.vibrate(200);
+                if(window.navigator.vibrate) window.navigator.vibrate(200);
                 markAttendance(auth.currentUser.uid);
             } else {
                 alert("Invalid QR Code!");
@@ -207,7 +216,6 @@ function markAttendance(uid) {
 
     db.collection("attendance").where("uid", "==", uid).where("date", "==", dateString).get().then((snapshot) => {
         if (snapshot.empty) {
-            // New Check-In
             db.collection("attendance").add({
                 uid: uid, date: dateString, checkIn: timeString, checkOut: "", totalHours: "",
                 created_at: firebase.firestore.FieldValue.serverTimestamp()
@@ -221,7 +229,6 @@ function markAttendance(uid) {
             const data = doc.data();
 
             if (!data.checkOut) {
-                // 2. 2-Minute Cooldown Check
                 const checkInTime = data.created_at.toDate();
                 const diffMinutes = Math.floor((new Date() - checkInTime) / (1000 * 60));
 
@@ -231,7 +238,6 @@ function markAttendance(uid) {
                     return;
                 }
 
-                // Check-Out
                 const hours = ((new Date() - checkInTime) / (1000 * 60 * 60)).toFixed(2);
                 db.collection("attendance").doc(doc.id).update({
                     checkOut: timeString, totalHours: hours
@@ -247,14 +253,16 @@ function markAttendance(uid) {
         }
     }).catch(err => {
         alert("Error: " + err.message);
-        html5QrCode.resume();
+        if(html5QrCode) html5QrCode.resume();
     });
 }
 
 function stopScanner() {
     if (html5QrCode) {
-        html5QrCode.stop().then(() => html5QrCode.clear());
-        document.getElementById("startScanBtn").style.display = "block";
+        html5QrCode.stop().then(() => {
+            html5QrCode.clear();
+            document.getElementById("startScanBtn").style.display = "block";
+        }).catch(err => console.log(err));
     }
 }
 
@@ -263,13 +271,15 @@ function loadTodayHours(uid) {
     db.collection("attendance").where("uid", "==", uid).where("date", "==", today).get().then(snap => {
         if (!snap.empty) {
             const d = snap.docs[0].data();
-            document.getElementById("todayHours").innerText = `Today: ${d.checkIn} - ${d.checkOut || 'Active'} | ${d.totalHours || '0'} hrs`;
+            const el = document.getElementById("todayHours");
+            if(el) el.innerText = `Today: ${d.checkIn} - ${d.checkOut || 'Active'} | ${d.totalHours || '0'} hrs`;
         }
     });
 }
 
 function loadHistory(uid) {
     const table = document.getElementById("historyBody");
+    if(!table) return;
     table.innerHTML = "";
     db.collection("attendance").where("uid", "==", uid).orderBy("created_at", "desc").limit(10).get().then(snap => {
         snap.forEach(doc => {
